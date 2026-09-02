@@ -1,0 +1,91 @@
+---
+- name: Deploy Node.js App
+  hosts: webservers
+  become: yes
+
+  vars:
+    repo_url: "https://github.com/Ridwan-36/Assignment1-ansible-node-app.git"
+    app_dir: "/opt/ansible-node-app"
+    node_version: "20"
+    app_port: 3000
+
+  tasks:
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - git
+          - curl
+        state: present
+
+    - name: Download NodeSource setup script
+      ansible.builtin.get_url:
+        url: "https://deb.nodesource.com/setup_{{ node_version }}.x"
+        dest: "/tmp/nodesource_setup.sh"
+        mode: "0755"
+
+    - name: Setup NodeSource repository
+      ansible.builtin.command:
+        cmd: "/tmp/nodesource_setup.sh"
+
+    - name: Install Node.js
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: yes
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: "0755"
+
+    - name: Clone Node.js application
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: main
+        force: yes
+
+    - name: Install Node.js dependencies
+      ansible.builtin.command:
+        cmd: npm install
+        chdir: "{{ app_dir }}"
+
+    - name: Create systemd service for Node.js app
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/node-app.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Node.js Application
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=ubuntu
+          WorkingDirectory={{ app_dir }}
+          Environment=PORT={{ app_port }}
+          ExecStart=/usr/bin/npm start
+          Restart=always
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Start Node.js application
+      ansible.builtin.systemd:
+        name: node-app
+        state: started
+        enabled: yes
