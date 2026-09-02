@@ -1,0 +1,9 @@
+{
+  "name": "assignment1-ansible-node-app",
+  "version": "1.0.0",
+  "description": "Node.js app deployed using Ansible",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  }
+}
